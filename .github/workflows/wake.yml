@@ -11,6 +11,9 @@ on:
   schedule:
     # GitHub 的 cron 有 5~15 分钟抖动，属正常现象
     - cron: '*/30 * * * *'
+  # 改动工作流或脚本时顺便跑一次，等于自带回归测试
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       endpoint:
