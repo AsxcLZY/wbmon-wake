@@ -1,0 +1,16 @@
+# 本地状态（tickCount 基线），不入库
+.wake-state.json
+
+# 编辑器/系统
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
+
+# 严禁入库：任何真实凭据
+config.json
+tokens.txt
+*.key
+*.pem
+.env
+.env.*

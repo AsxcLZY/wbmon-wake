@@ -1,0 +1,55 @@
+name: wake
+
+# 定时唤醒 WorkBuddy 云端托管服务（wbmon-cloud）
+# 托管沙箱是「请求驱动」的：没有外部请求就会休眠，休眠期间不会跑签到/猫猫旅行/成长任务。
+# 这个工作流只做一件事——定时打一下公开的 /health，让沙箱保持活跃。
+#
+# 安全边界：只访问 /health（公网无鉴权、不含账号信息）。
+# 不访问 /status、/log、/tick、/config 等需要 access_key 的端点，仓库里也不存在任何密钥。
+
+on:
+  schedule:
+    # GitHub 的 cron 有 5~15 分钟抖动，属正常现象
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      endpoint:
+        description: '临时覆盖服务地址（留空则用仓库变量 WBMON_ENDPOINT 或默认值）'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wake
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # tickCount 基线跨 run 保留：用唯一 key 保存、前缀恢复
+      - name: Restore tick baseline
+        uses: actions/cache@v4
+        with:
+          path: .wake-state.json
+          key: wake-state-${{ github.run_id }}
+          restore-keys: |
+            wake-state-
+
+      - name: Wake and verify
+        env:
+          WBMON_ENDPOINT: ${{ inputs.endpoint || vars.WBMON_ENDPOINT }}
+          WAKE_TRIES: '4'
+          WAKE_GAP_MS: '15000'
+        run: node scripts/wake.mjs
+
+      # 失败时也把状态存下来，避免基线反复丢失
+      - name: Show state
+        if: always()
+        run: cat .wake-state.json 2>/dev/null || echo '（无状态文件）'
